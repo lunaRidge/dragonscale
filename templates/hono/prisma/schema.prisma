@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  mobile        String         @unique
+  name          String?
+  // 一个用户可以有多个答题记录
+  userResponses UserResponse[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+enum ExamType {
+  IELTS
+  GRE
+  TOEFL
+}
+
+model Exam {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  examType    ExamType
+  // 一个考试包含多个部分
+  sections    Section[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum SectionType {
+  LISTENING
+  READING
+  SPEAKING
+  WRITING
+}
+
+model Section {
+  id             Int             @id @default(autoincrement())
+  title          String
+  examType       ExamType
+  sectionType    SectionType
+  // 多个部分属于一个考试
+  exam           Exam?           @relation(fields: [examId], references: [id])
+  examId         Int?
+  // 一个部分包含多个问题组
+  questionGroups QuestionGroup[]
+  // 一个部分包含多个测试
+  tests          Test[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Test {
+  id             Int             @id @default(autoincrement())
+  title          String
+  // 多个测试属于一个部分
+  section        Section         @relation(fields: [sectionId], references: [id])
+  sectionId      Int
+  // 一个测试包含多个问题组
+  questionGroups QuestionGroup[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model QuestionGroup {
+  id        Int        @id @default(autoincrement())
+  title     String?
+  content   String
+  // 多个问题组属于一个部分
+  section   Section    @relation(fields: [sectionId], references: [id])
+  sectionId Int
+  test      Test?      @relation(fields: [testId], references: [id])
+  testId    Int?
+  // 一个问题组包含多个问题
+  questions Question[]
+  // 一个问题组可以有一个音频（一对一关系）
+  audio     Audio?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  audioId   Int?
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  FILL_IN_BLANK
+}
+
+model Question {
+  id              Int            @id @default(autoincrement())
+  content         String
+  type            QuestionType
+  // 多个问题属于一个问题组
+  questionGroup   QuestionGroup  @relation(fields: [questionGroupId], references: [id])
+  questionGroupId Int
+  // 一个问题有多个选项
+  options         Option[]
+  // 一个问题有一个答案
+  answer          Answer?
+  // 一个问题可以有多个用户回答
+  userResponses   UserResponse[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Option {
+  id         Int      @id @default(autoincrement())
+  content    String
+  // 多个选项属于一个问题
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Answer {
+  id         Int      @id @default(autoincrement())
+  content    String
+  // 添加解析内容
+  analysis   String
+  // 一个答案属于一个问题（一对一关系）
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId Int      @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model UserResponse {
+  id         Int      @id @default(autoincrement())
+  // 多个用户回答属于一个用户
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  // 多个用户回答属于一个问题
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId Int
+  response   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // 确保每个用户对每个问题只有一个回答
+  @@unique([userId, questionId])
+}
+
+model Audio {
+  id  Int    @id @default(autoincrement())
+  url String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 一个音频只能属于一个 QuestionGroup（一对一关系）
+  questionGroup   QuestionGroup @relation(fields: [questionGroupId], references: [id])
+  questionGroupId Int           @unique
+}
