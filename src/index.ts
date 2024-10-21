@@ -5,14 +5,7 @@ import inquirer from "inquirer";
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
-import { exec } from "child_process";
-import util from "util";
-
-// 将 exec 转换为 Promise 形式，并扩展其类型
-const execPromise = util.promisify(exec) as (
-  command: string,
-  options?: { cwd?: string; stdio?: "inherit" | "pipe" | "ignore" }
-) => Promise<{ stdout: string; stderr: string }>;
+import { spawn } from "child_process";
 
 const program = new Command();
 
@@ -76,11 +69,6 @@ program
 
     // 创建项目结构
     await createProjectStructure(answers);
-    console.log(
-      chalk.bold.hex("#FF1493")(
-        "Congratulations! Your Dragon is Breathing Fire Now!"
-      )
-    );
   });
 
 async function createProjectStructure(answers: any) {
@@ -102,20 +90,7 @@ async function createProjectStructure(answers: any) {
   await createOtherNecessaryFiles(projectPath);
 
   // 安装依赖
-  const isCompiledVersion = path.dirname(process.argv[1]).includes("dist");
-  const logLevel = isCompiledVersion ? "error" : "warn";
-  console.log(chalk.blue("正在安装依赖..."));
-  try {
-    await execPromise(`pnpm install --loglevel=${logLevel}`, {
-      cwd: projectPath,
-      stdio: "inherit",
-    });
-
-    console.log(chalk.green("依赖安装成功!"));
-  } catch (error) {
-    console.error(chalk.red("依赖安装失败:"), error);
-    process.exit(1);
-  }
+  await installDependencies(projectPath);
 }
 
 async function copyTemplateFiles(
@@ -194,6 +169,34 @@ async function createOtherNecessaryFiles(projectPath: string) {
     pnpmWorkspacePath,
     "packages:\n  - packages/*\n  - client/*\n  - backend/*\n"
   );
+}
+
+async function installDependencies(projectPath: string) {
+  console.log(chalk.blue("正在安装依赖..."));
+
+  const pnpmInstall = spawn("pnpm", ["install", "--loglevel", "error"], {
+    cwd: projectPath,
+    stdio: "inherit", // 设置为 "inherit" 以允许实时输出
+  });
+
+  pnpmInstall.on("close", (code) => {
+    if (code === 0) {
+      console.log(chalk.green("依赖安装成功!"));
+      console.log(
+        chalk.bold.hex("#FF1493")(
+          "Congratulations! Your Dragon is Breathing Fire Now!"
+        )
+      );
+    } else {
+      console.error(chalk.red("依赖安装失败: 退出码 " + code));
+      process.exit(1);
+    }
+  });
+
+  pnpmInstall.on("error", (error) => {
+    console.error(chalk.red("依赖安装失败:"), error);
+    process.exit(1);
+  });
 }
 
 program.parse(process.argv);

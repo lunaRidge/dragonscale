@@ -8,14 +8,21 @@
     "dev": "tsx src/index.ts",
     "build": "rm -rf dist && tsc && cp -R templates dist/templates && ls -R dist",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build-and-install": "pnpm run build && npm uninstall -g dragonscale && npm install -g .",
+    "prepublishOnly": "pnpm run build"
   },
   "bin": {
     "dragonscale": "./dist/index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "cli",
+    "scaffold",
+    "monorepo",
+    "full-stack"
+  ],
+  "author": "Tang Si",
+  "license": "MIT",
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
@@ -27,5 +34,8 @@
     "@types/inquirer": "^9.0.7",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
