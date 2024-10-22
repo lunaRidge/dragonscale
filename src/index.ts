@@ -91,6 +91,15 @@ async function createProjectStructure(answers: any) {
 
   // 安装依赖
   await installDependencies(projectPath);
+
+  // 执行其他代码，生成 Prisma 客户端
+  await runOtherScripts(projectPath);
+
+  console.log(
+    chalk.bold.hex("#FF1493")(
+      "Congratulations! Your Dragon is Breathing Fire Now!"
+    )
+  );
 }
 
 async function copyTemplateFiles(
@@ -174,28 +183,55 @@ async function createOtherNecessaryFiles(projectPath: string) {
 async function installDependencies(projectPath: string) {
   console.log(chalk.blue("正在安装依赖..."));
 
-  const pnpmInstall = spawn("pnpm", ["install", "--loglevel", "error"], {
-    cwd: projectPath,
-    stdio: "inherit", // 设置为 "inherit" 以允许实时输出
+  return new Promise<void>((resolve, reject) => {
+    const pnpmInstall = spawn("pnpm", ["install", "--loglevel", "error"], {
+      cwd: projectPath,
+      stdio: "inherit",
+    });
+
+    pnpmInstall.on("close", (code) => {
+      if (code === 0) {
+        console.log(chalk.green("依赖安装成功!"));
+
+        resolve();
+      } else {
+        console.error(chalk.red("依赖安装失败: 退出码 " + code));
+        reject(new Error(`依赖安装失败: 退出码 ${code}`));
+      }
+    });
+
+    pnpmInstall.on("error", (error) => {
+      console.error(chalk.red("依赖安装失败:"), error);
+      reject(error);
+    });
+  });
+}
+
+//执行其他脚本命令
+async function runOtherScripts(projectPath: string) {
+  const prismaPath = path.join(projectPath, "backend/hono");
+  console.log(chalk.blue("正在生成 Prisma 客户端..."));
+
+  const prismaGenerate = spawn("npx", ["prisma", "generate"], {
+    cwd: prismaPath,
+    stdio: "inherit",
   });
 
-  pnpmInstall.on("close", (code) => {
-    if (code === 0) {
-      console.log(chalk.green("依赖安装成功!"));
-      console.log(
-        chalk.bold.hex("#FF1493")(
-          "Congratulations! Your Dragon is Breathing Fire Now!"
-        )
-      );
-    } else {
-      console.error(chalk.red("依赖安装失败: 退出码 " + code));
-      process.exit(1);
-    }
-  });
+  return new Promise<void>((resolve, reject) => {
+    prismaGenerate.on("close", (code) => {
+      if (code === 0) {
+        console.log(chalk.green("Prisma 客户端生成成功!"));
+        resolve();
+      } else {
+        console.error(chalk.red("Prisma 客户端生成失败: 退出码 " + code));
+        reject(new Error("Prisma 客户端生成失败"));
+      }
+    });
 
-  pnpmInstall.on("error", (error) => {
-    console.error(chalk.red("依赖安装失败:"), error);
-    process.exit(1);
+    prismaGenerate.on("error", (error) => {
+      console.error(chalk.red("Prisma 客户端生成失败:"), error);
+      reject(error);
+    });
   });
 }
 
